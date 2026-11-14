@@ -57,7 +57,24 @@ The exe is not code-signed, so Windows SmartScreen may say "Windows protected yo
   The token never goes to the log. With "Remember" ticked it is saved encrypted by Windows (DPAPI) in
   `%APPDATA%\PlatooBridge\token.bin`, readable only by the same Windows user on this computer; untick to delete it.
 
-## พัฒนา / Develop
+## รันจาก source (ไม่ใช้ exe) / Run from source
+
+ไม่มีคำเตือน SmartScreen และอ่านโค้ดได้ทุกบรรทัด ต้องมี Python 3.9 ขึ้นไป ไม่ต้อง `pip install` อะไรเพิ่ม /
+No SmartScreen warning and every line is readable. Needs Python 3.9+, nothing to install.
+
+```bash
+git clone https://github.com/kiraro33/platoo-bridge-gui.git
+cd platoo-bridge-gui
+python gui.py
+```
+
+ไม่มี git ให้กด **Code → Download ZIP** แล้วแตกไฟล์ / No git: **Code → Download ZIP**.
+
+- Windows: Python จาก python.org มี tkinter มาให้แล้ว / tkinter ships with Python from python.org.
+- Linux: ติดตั้ง tkinter ก่อน เช่น `sudo apt install python3-tk` และปุ่ม "จำไว้" ใช้ได้เฉพาะ Windows /
+  install tkinter first; "Remember" works on Windows only.
+
+## ทดสอบ / Tests
 
 ```bash
 pip install pytest

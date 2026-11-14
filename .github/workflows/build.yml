@@ -10,7 +10,7 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest pyinstaller
       - run: pytest -q
-      - run: pyinstaller --onefile --windowed --name PlatooBridge gui.py
+      - run: pyinstaller --onefile --windowed --name PlatooBridge --icon logo.ico --add-data "logo.png:." gui.py
       - uses: actions/upload-artifact@v4
         with:
           name: PlatooBridge

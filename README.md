@@ -30,8 +30,10 @@ Keep the window open during a game: a bot that is away for 60 seconds loses by a
   `id author`, the bridge version, and per-move depth, nodes, time, score and PV.
 - ไม่ส่ง / Never sent: ตัวโปรแกรมเอนจิน ไฟล์ NNUE หรือ eval ค่าตัวเลือก UCI หรือสิ่งอื่นใดในเครื่องของคุณ /
   your engine program, its NNUE or eval files, your UCI option values, or anything else on your computer.
-- โทเคนอยู่ในหน่วยความจำเท่านั้น ไม่ถูกบันทึกลงไฟล์หรือ log / The token is kept in memory only, never written to
-  a file or the log.
+- โทเคนไม่ถูกเขียนลง log ถ้าติ๊ก "จำไว้" จะบันทึกแบบเข้ารหัสด้วย Windows (DPAPI) ที่
+  `%APPDATA%\PlatooBridge\token.bin` ซึ่งถอดได้เฉพาะผู้ใช้ Windows คนเดียวกันบนเครื่องนี้ เอาติ๊กออกเพื่อลบ /
+  The token never goes to the log. With "Remember" ticked it is saved encrypted by Windows (DPAPI) in
+  `%APPDATA%\PlatooBridge\token.bin`, readable only by the same Windows user on this computer; untick to delete it.
 
 ## พัฒนา / Develop
 

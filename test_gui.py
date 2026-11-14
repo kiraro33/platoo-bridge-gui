@@ -1,6 +1,20 @@
+import sys
+
 import pytest
 
+import gui
 from gui import make_args
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="DPAPI is Windows only")
+def test_token_saved_encrypted(tmp_path, monkeypatch):
+    monkeypatch.setattr(gui, "TOKEN_FILE", tmp_path / "PlatooBridge" / "token.bin")
+    assert gui.load_token() == ""
+    gui.save_token("ptb_secret")
+    assert b"ptb_secret" not in gui.TOKEN_FILE.read_bytes()
+    assert gui.load_token() == "ptb_secret"
+    gui.forget_token()
+    assert gui.load_token() == ""
 
 
 def test_make_args(tmp_path):

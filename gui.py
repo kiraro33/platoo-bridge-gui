@@ -65,19 +65,92 @@ _popen = subprocess.Popen
 pb.subprocess.Popen = lambda *a, **kw: _popen(*a, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), **kw)
 
 
-def make_args(engine, options, level, minutes, color, games):
+def make_args(engine, options, level, minutes, color, games, evalfile="", threads=1, hash_mb=64, ponder=True,
+              no_bonus=True):
     """Form values -> the argparse namespace pb.Bridge expects. ValueError carries the message for the user."""
     if not Path(engine).is_file():
         raise ValueError("เลือกไฟล์เอนจิน UCI ของคุณ / Pick your UCI engine file")
-    opts = [line.strip() for line in options.splitlines() if line.strip()]
-    for opt in opts:
+    if evalfile and not Path(evalfile).is_file():
+        raise ValueError(f"ไม่พบไฟล์ EvalFile / EvalFile not found: {evalfile}")
+    if not (1 <= threads <= 1024 and 1 <= hash_mb <= 65536):
+        raise ValueError("Threads 1-1024, Hash 1-65536 MB")
+    opts = [f"Threads={threads}", f"Hash={hash_mb}", f"Ponder={'true' if ponder else 'false'}"]
+    if evalfile:  # empty: the engine keeps its own built-in net
+        opts.append(f"EvalFile={evalfile}")
+    extra = [line.strip() for line in options.splitlines() if line.strip()]
+    for opt in extra:
         if "=" not in opt or not opt.partition("=")[0].strip():
             raise ValueError(f"ตัวเลือกต้องเป็น NAME=VALUE / Options must be NAME=VALUE: {opt}")
     if not 1 <= games <= 20:
         raise ValueError("จำนวนเกม 1-20 / Games must be 1-20")
-    return Namespace(engine=engine, engine_arg=None, option=opts, server=pb.DEFAULT_SERVER,
-                     challenge=(level, minutes, color), games=games, no_bonus=False,
+    return Namespace(engine=engine, engine_arg=None, option=opts + extra, server=pb.DEFAULT_SERVER,
+                     challenge=(level, minutes, color), games=games, no_bonus=no_bonus,
                      exit_after_series=True, overhead_ms=300, log=None, quiet=False)
+
+
+def _is_bestmove(line):
+    return line.startswith("bestmove")
+
+
+class PonderEngine(pb.Engine):
+    """pb.Engine plus pondering: after its move the engine keeps thinking on the reply it expects (go ponder);
+    when PlaToo plays that reply the search goes on (ponderhit), otherwise it is stopped and started afresh."""
+
+    ponder_on = None  # (start_fen, moves) of the position being pondered
+
+    def start(self):
+        self.ponder_on = None
+        return super().start()
+
+    def stop_ponder(self):
+        if self.ponder_on and self.alive:
+            self.ponder_on = None
+            self.send("stop")
+            self.read_until(_is_bestmove, 5)  # the pondering search's move, not wanted
+        self.ponder_on = None
+
+    def new_game(self):
+        self.stop_ponder()
+        super().new_game()
+
+    def think(self, start_fen, moves, go, timeout):
+        if self.ponder_on == (start_fen, moves):
+            self.ponder_on = None
+            self.send("ponderhit")
+        else:
+            self.stop_ponder()
+            self.send(pb.position_line(start_fen, moves))
+            self.send(go)
+        try:
+            lines = self.read_until(_is_bestmove, timeout)
+        except pb.BridgeError as exc:  # as pb.Engine.think: stop a search that runs too long
+            if "did not answer" not in str(exc):
+                raise
+            self.send("stop")
+            lines = self.read_until(_is_bestmove, 3)
+        best = lines[-1].split()
+        move = best[1] if len(best) > 1 else ""
+        info = next((pb.parse_info(l) for l in reversed(lines)
+                     if l.startswith("info ") and " score " in l and " pv " in l), {})
+        reply = best[3] if len(best) > 3 and best[2] == "ponder" else ""
+        if "Ponder=true" in self.options and pb.MOVE_RE.fullmatch(move) and pb.MOVE_RE.fullmatch(reply):
+            line = moves + [move, reply]
+            self.send(pb.position_line(start_fen, line))
+            self.send(go.replace("go", "go ponder", 1))  # PlaToo's clock runs now, ours does not
+            self.ponder_on = (start_fen, line)
+        return move, info
+
+
+pb.Engine = PonderEngine  # pb.Bridge builds its engine from this name
+
+
+class GuiBridge(pb.Bridge):
+    def on_finish(self, ev):
+        try:
+            self.engine.stop_ponder()  # no pondering on a finished game
+        except pb.BridgeError:
+            pass  # a dead engine is restarted at the next move
+        super().on_finish(ev)
 
 
 def _stopped(*_args, **_kw):
@@ -108,7 +181,7 @@ class App(tk.Tk):
         f = ttk.Frame(self, padding=12)
         f.pack(fill="both", expand=True)
         f.columnconfigure(1, weight=1)
-        f.rowconfigure(8, weight=1)
+        f.rowconfigure(11, weight=1)
 
         def label(row, text):
             ttk.Label(f, text=text).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=3)
@@ -130,11 +203,35 @@ class App(tk.Tk):
         label(1, "เอนจิน / Engine")
         self.engine = ttk.Entry(f)
         self.engine.grid(row=1, column=1, sticky="ew")
-        ttk.Button(f, text="เลือก… / Browse…", command=self.browse).grid(row=1, column=2, padx=(6, 0))
+        ttk.Button(f, text="เลือก… / Browse…", command=lambda: self.browse(self.engine)).grid(row=1, column=2, padx=(6, 0))
 
-        label(2, "ตัวเลือก UCI / UCI options\nNAME=VALUE (บรรทัดละตัว / one per line)")
-        self.options = tk.Text(f, height=3, width=40)
-        self.options.grid(row=2, column=1, columnspan=2, sticky="ew", pady=3)
+        label(2, "EvalFile (NNUE)\nเว้นว่าง = ใช้ไฟล์ในตัวเอนจิน / empty = engine's built-in")
+        self.evalfile = ttk.Entry(f)
+        self.evalfile.grid(row=2, column=1, sticky="ew")
+        ttk.Button(f, text="เลือก… / Browse…", command=lambda: self.browse(self.evalfile, "*.nnue")).grid(
+            row=2, column=2, padx=(6, 0))
+
+        label(3, "Threads / Hash (MB)")
+        sizes = ttk.Frame(f)
+        sizes.grid(row=3, column=1, columnspan=2, sticky="w")
+        self.threads = ttk.Spinbox(sizes, from_=1, to=os.cpu_count() or 64, width=6)
+        self.threads.set(1)
+        self.hash = ttk.Spinbox(sizes, values=(16, 32, 64, 128, 256, 512, 1024, 2048, 4096), width=8)
+        self.hash.set(64)
+        self.threads.pack(side="left")
+        self.hash.pack(side="left", padx=(12, 0))
+
+        ticks = ttk.Frame(f)
+        ticks.grid(row=4, column=1, columnspan=2, sticky="w", pady=3)
+        self.ponder = tk.BooleanVar(value=True)
+        self.no_bonus = tk.BooleanVar(value=True)
+        ttk.Checkbutton(ticks, text="คิดล่วงหน้าตอนตาคู่แข่ง / Ponder", variable=self.ponder).pack(side="left")
+        ttk.Checkbutton(ticks, text="ไม่ใช้โบนัสเวลาเมื่อเหลือน้อย / No low-time bonus",
+                        variable=self.no_bonus).pack(side="left", padx=(12, 0))
+
+        label(5, "ตัวเลือกอื่น / Other UCI options\nNAME=VALUE (บรรทัดละตัว / one per line)")
+        self.options = tk.Text(f, height=2, width=40)
+        self.options.grid(row=5, column=1, columnspan=2, sticky="ew", pady=3)
 
         def combo(row, text, values):
             label(row, text)
@@ -143,18 +240,18 @@ class App(tk.Tk):
             box.grid(row=row, column=1, columnspan=2, sticky="ew")
             return box
 
-        self.level = combo(3, "ระดับ / Level", [name for name, _ in LEVELS])
+        self.level = combo(6, "ระดับ / Level", [name for name, _ in LEVELS])
         self.level.current(2)
-        self.minutes = combo(4, "เวลา (นาที) / Time (minutes)", MINUTES)
+        self.minutes = combo(7, "เวลา (นาที) / Time (minutes)", MINUTES)
         self.minutes.current(1)
-        self.color = combo(5, "สีของบอทคุณ / Your bot's colour", [name for name, _ in COLORS])
-        label(6, "จำนวนเกม / Games")
+        self.color = combo(8, "สีของบอทคุณ / Your bot's colour", [name for name, _ in COLORS])
+        label(9, "จำนวนเกม / Games")
         self.games = ttk.Spinbox(f, from_=1, to=20)
         self.games.set(4)
-        self.games.grid(row=6, column=1, columnspan=2, sticky="ew")
+        self.games.grid(row=9, column=1, columnspan=2, sticky="ew")
 
         bar = ttk.Frame(f)
-        bar.grid(row=7, column=0, columnspan=3, sticky="ew", pady=8)
+        bar.grid(row=10, column=0, columnspan=3, sticky="ew", pady=8)
         self.start_btn = ttk.Button(bar, text="เริ่ม / Start", command=self.start)
         self.stop_btn = ttk.Button(bar, text="หยุด / Stop", command=self.stop)
         self.watch_btn = ttk.Button(bar, text="ดูเกมสด / Watch live", command=lambda: webbrowser.open(self.url))
@@ -163,7 +260,7 @@ class App(tk.Tk):
             w.pack(side="left", padx=(0, 6))
 
         self.log = scrolledtext.ScrolledText(f, height=14, state="disabled")
-        self.log.grid(row=8, column=0, columnspan=3, sticky="nsew")
+        self.log.grid(row=11, column=0, columnspan=3, sticky="nsew")
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.poll()
@@ -192,23 +289,26 @@ class App(tk.Tk):
         except OSError as exc:
             messagebox.showerror("PlaToo Bridge", str(exc))
 
-    def browse(self):
-        path = filedialog.askopenfilename()
+    @staticmethod
+    def browse(entry, pattern=None):
+        path = filedialog.askopenfilename(filetypes=[(pattern, pattern), ("*", "*")] if pattern else [])
         if path:
-            self.engine.delete(0, "end")
-            self.engine.insert(0, path)
+            entry.delete(0, "end")
+            entry.insert(0, path)
 
     def start(self):
         token = self.token.get().strip()
         try:
             if not token:
                 raise ValueError("วางโทเคนบอทก่อน / Paste your bot token first")
-            if not self.games.get().isdigit():
-                raise ValueError("จำนวนเกม 1-20 / Games must be 1-20")
+            if not all(box.get().strip().isdigit() for box in (self.games, self.threads, self.hash)):
+                raise ValueError("จำนวนเกม, Threads และ Hash ต้องเป็นตัวเลข / Games, Threads and Hash must be numbers")
             args = make_args(self.engine.get().strip(), self.options.get("1.0", "end"),
                              LEVELS[self.level.current()][1], MINUTES[self.minutes.current()],
-                             COLORS[self.color.current()][1], int(self.games.get()))
-            self.bridge = pb.Bridge(args, token)
+                             COLORS[self.color.current()][1], int(self.games.get()),
+                             evalfile=self.evalfile.get().strip(), threads=int(self.threads.get()),
+                             hash_mb=int(self.hash.get()), ponder=self.ponder.get(), no_bonus=self.no_bonus.get())
+            self.bridge = GuiBridge(args, token)
         except (ValueError, pb.BridgeError) as exc:
             messagebox.showerror("PlaToo Bridge", str(exc))
             return

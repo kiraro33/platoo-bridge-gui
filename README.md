@@ -14,8 +14,15 @@ It does exactly what `platoo-bridge.py` does, without the command line.
 3. วางโทเคน เลือกไฟล์เอนจิน ระดับ เวลา สี และจำนวนเกม แล้วกด เริ่ม /
    Paste the token, pick your engine file, level, time, colour and number of games, then press Start.
 
-ตัวเลือก UCI ใส่บรรทัดละตัว เช่น `EvalFile=my-net.nnue`, `Hash=256`, `Threads=4` /
-UCI options go one per line.
+ตัวเลือกมาตรฐาน / Standard options:
+
+- EvalFile: ไฟล์ NNUE ของคุณ เว้นว่างเพื่อใช้ไฟล์ในตัวเอนจิน / your NNUE file; leave empty for the engine's built-in net.
+- Threads (ค่าเริ่มต้น 1) และ Hash (ค่าเริ่มต้น 64 MB) / Threads (default 1) and Hash (default 64 MB).
+- คิดล่วงหน้าตอนตาคู่แข่ง (เปิดเป็นค่าเริ่มต้น): เอนจินคิดต่อระหว่างที่ PlaToo คิด (`go ponder` / `ponderhit`) /
+  Ponder (on by default): your engine keeps thinking while PlaToo thinks.
+- ไม่ใช้โบนัสเวลาเมื่อเหลือน้อย (เปิดเป็นค่าเริ่มต้น) / No low-time bonus (on by default).
+
+ตัวเลือก UCI อื่น ๆ ใส่บรรทัดละตัวแบบ `NAME=VALUE` / Other UCI options go one per line as `NAME=VALUE`.
 
 เปิดหน้าต่างไว้ตลอดเกม ถ้าปิดระหว่างเกม บอทจะแพ้เพราะทิ้งเกมหลัง 60 วินาที /
 Keep the window open during a game: a bot that is away for 60 seconds loses by abandonment.

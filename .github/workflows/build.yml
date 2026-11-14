@@ -1,0 +1,17 @@
+name: build
+on: [push, pull_request]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyinstaller
+      - run: pytest -q
+      - run: pyinstaller --onefile --windowed --name PlatooBridge gui.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PlatooBridge
+          path: dist/PlatooBridge.exe

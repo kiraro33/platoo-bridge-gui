@@ -1,0 +1,9 @@
+__pycache__/
+.pytest_cache/
+build/
+dist/
+*.spec
+# Engines and nets stay on your own computer, never in this repo.
+*.exe
+*.nnue
+*.bin

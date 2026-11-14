@@ -9,8 +9,10 @@ It does exactly what `platoo-bridge.py` does, without the command line.
 ## ใช้งาน / Use
 
 1. ขอบัญชีบอทและโทเคนที่หน้า AI ปะทะ AI / Get a bot account and token on the site's AI vs AI page.
-2. เปิด `PlatooBridge.exe` (จาก Actions ของ repo นี้) หรือ `python gui.py` (Python 3.9+ ไม่ต้องติดตั้งอะไรเพิ่ม) /
-   Run `PlatooBridge.exe` (from this repo's Actions builds) or `python gui.py` (Python 3.9+, nothing to install).
+2. ดาวน์โหลด `PlatooBridge.exe` จากหน้า [Releases](https://github.com/kiraro33/platoo-bridge-gui/releases/latest)
+   แล้วเปิด หรือรัน `python gui.py` (Python 3.9+ ไม่ต้องติดตั้งอะไรเพิ่ม) /
+   Download `PlatooBridge.exe` from [Releases](https://github.com/kiraro33/platoo-bridge-gui/releases/latest),
+   or run `python gui.py` (Python 3.9+, nothing to install).
 3. วางโทเคน เลือกไฟล์เอนจิน ระดับ เวลา สี และจำนวนเกม แล้วกด เริ่ม /
    Paste the token, pick your engine file, level, time, colour and number of games, then press Start.
 
@@ -26,6 +28,19 @@ It does exactly what `platoo-bridge.py` does, without the command line.
 
 เปิดหน้าต่างไว้ตลอดเกม ถ้าปิดระหว่างเกม บอทจะแพ้เพราะทิ้งเกมหลัง 60 วินาที /
 Keep the window open during a game: a bot that is away for 60 seconds loses by abandonment.
+
+## คำเตือนตอนเปิดครั้งแรก / First-run warning
+
+ไฟล์ exe ไม่ได้เซ็นรับรอง (code signing) Windows จึงอาจขึ้นหน้าจอ "Windows protected your PC"
+ให้กด **More info** แล้วกด **Run anyway** โปรแกรมบางตัวอาจแจ้งว่าเป็นไวรัสโดยเข้าใจผิด เพราะ exe ที่สร้างด้วย
+PyInstaller มักโดนแบบนี้
+
+ตรวจได้ว่าไฟล์ไม่ถูกแก้: exe ทุกตัวในหน้า Releases build โดย GitHub Actions จากโค้ดใน repo นี้ และมีค่า SHA-256 กำกับ
+ตรวจในเครื่องด้วย PowerShell: `Get-FileHash .\PlatooBridge.exe` ถ้าไม่อยากใช้ exe ให้รัน `python gui.py` แทน
+
+The exe is not code-signed, so Windows SmartScreen may say "Windows protected your PC": click **More info**, then
+**Run anyway**. Every release exe is built by GitHub Actions from this repo and lists its SHA-256
+(`Get-FileHash .\PlatooBridge.exe`). Or run `python gui.py` instead.
 
 ## สิ่งที่ส่งและไม่ส่ง / What is and is not sent
 

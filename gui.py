@@ -170,6 +170,7 @@ class App(tk.Tk):
         self.logo = tk.PhotoImage(file=str(HERE / "logo.png"))
         self.iconphoto(True, self.logo)
         self.small_logo = self.logo.subsample(4)
+        ttk.Label(self, image=self.small_logo).pack(pady=(10, 0))
         self.bind_all("<Control-KeyPress>", self.edit_key)
         self.menu = tk.Menu(self, tearoff=0)
         for text, ev in (("ตัด / Cut", "<<Cut>>"), ("คัดลอก / Copy", "<<Copy>>"), ("วาง / Paste", "<<Paste>>")):
@@ -179,20 +180,19 @@ class App(tk.Tk):
 
         f = ttk.Frame(self, padding=12)
         f.pack(fill="both", expand=True)
-        f.columnconfigure(2, weight=1)
+        f.columnconfigure(1, weight=1)
         f.rowconfigure(11, weight=1)
-        ttk.Label(f, image=self.small_logo).grid(row=0, column=0, rowspan=10, sticky="nw", padx=(0, 12))
 
         def label(row, text):
-            ttk.Label(f, text=text).grid(row=row, column=1, sticky="w", padx=(0, 8), pady=3)
+            ttk.Label(f, text=text).grid(row=row, column=0, sticky="w", padx=(0, 8), pady=3)
 
         label(0, "โทเคนบอท / Bot token")
         self.token = ttk.Entry(f, show="•")
-        self.token.grid(row=0, column=2, sticky="ew")
+        self.token.grid(row=0, column=1, sticky="ew")
         saved = load_token()
         self.token.insert(0, saved)
         checks = ttk.Frame(f)
-        checks.grid(row=0, column=3, sticky="w", padx=(6, 0))
+        checks.grid(row=0, column=2, sticky="w", padx=(6, 0))
         self.show = tk.BooleanVar(value=False)
         ttk.Checkbutton(checks, text="แสดง / Show", variable=self.show,
                         command=lambda: self.token.configure(show="" if self.show.get() else "•")).pack(side="left")
@@ -202,18 +202,18 @@ class App(tk.Tk):
 
         label(1, "เอนจิน / Engine")
         self.engine = ttk.Entry(f)
-        self.engine.grid(row=1, column=2, sticky="ew")
-        ttk.Button(f, text="เลือก… / Browse…", command=lambda: self.browse(self.engine)).grid(row=1, column=3, padx=(6, 0))
+        self.engine.grid(row=1, column=1, sticky="ew")
+        ttk.Button(f, text="เลือก… / Browse…", command=lambda: self.browse(self.engine)).grid(row=1, column=2, padx=(6, 0))
 
         label(2, "EvalFile (NNUE)\nเว้นว่าง = ใช้ไฟล์ในตัวเอนจิน / empty = engine's built-in")
         self.evalfile = ttk.Entry(f)
-        self.evalfile.grid(row=2, column=2, sticky="ew")
+        self.evalfile.grid(row=2, column=1, sticky="ew")
         ttk.Button(f, text="เลือก… / Browse…", command=lambda: self.browse(self.evalfile, "*.nnue")).grid(
-            row=2, column=3, padx=(6, 0))
+            row=2, column=2, padx=(6, 0))
 
         label(3, "Threads / Hash (MB)")
         sizes = ttk.Frame(f)
-        sizes.grid(row=3, column=2, columnspan=2, sticky="w")
+        sizes.grid(row=3, column=1, columnspan=2, sticky="w")
         self.threads = ttk.Spinbox(sizes, from_=1, to=os.cpu_count() or 64, width=6)
         self.threads.set(1)
         self.hash = ttk.Spinbox(sizes, values=(16, 32, 64, 128, 256, 512, 1024, 2048, 4096), width=8)
@@ -222,7 +222,7 @@ class App(tk.Tk):
         self.hash.pack(side="left", padx=(12, 0))
 
         ticks = ttk.Frame(f)
-        ticks.grid(row=4, column=2, columnspan=2, sticky="w", pady=3)
+        ticks.grid(row=4, column=1, columnspan=2, sticky="w", pady=3)
         self.ponder = tk.BooleanVar(value=True)
         self.no_bonus = tk.BooleanVar(value=True)
         ttk.Checkbutton(ticks, text="คิดล่วงหน้าตอนตาคู่แข่ง / Ponder", variable=self.ponder).pack(side="left")
@@ -231,13 +231,13 @@ class App(tk.Tk):
 
         label(5, "ตัวเลือกอื่น / Other UCI options\nNAME=VALUE (บรรทัดละตัว / one per line)")
         self.options = tk.Text(f, height=2, width=40)
-        self.options.grid(row=5, column=2, columnspan=2, sticky="ew", pady=3)
+        self.options.grid(row=5, column=1, columnspan=2, sticky="ew", pady=3)
 
         def combo(row, text, values):
             label(row, text)
             box = ttk.Combobox(f, values=values, state="readonly")
             box.current(0)
-            box.grid(row=row, column=2, columnspan=2, sticky="ew")
+            box.grid(row=row, column=1, columnspan=2, sticky="ew")
             return box
 
         self.level = combo(6, "ระดับ / Level", [name for name, _ in LEVELS])
@@ -248,10 +248,10 @@ class App(tk.Tk):
         label(9, "จำนวนเกม / Games")
         self.games = ttk.Spinbox(f, from_=1, to=20)
         self.games.set(4)
-        self.games.grid(row=9, column=2, columnspan=2, sticky="ew")
+        self.games.grid(row=9, column=1, columnspan=2, sticky="ew")
 
         bar = ttk.Frame(f)
-        bar.grid(row=10, column=0, columnspan=4, sticky="ew", pady=8)
+        bar.grid(row=10, column=0, columnspan=3, sticky="ew", pady=8)
         self.start_btn = ttk.Button(bar, text="เริ่ม / Start", command=self.start)
         self.stop_btn = ttk.Button(bar, text="หยุด / Stop", command=self.stop)
         self.watch_btn = ttk.Button(bar, text="ดูเกมสด / Watch live", command=lambda: webbrowser.open(self.url))
@@ -260,7 +260,7 @@ class App(tk.Tk):
             w.pack(side="left", padx=(0, 6))
 
         self.log = scrolledtext.ScrolledText(f, height=14, state="disabled")
-        self.log.grid(row=11, column=0, columnspan=4, sticky="nsew")
+        self.log.grid(row=11, column=0, columnspan=3, sticky="nsew")
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.poll()

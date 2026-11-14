@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" alt="PlaToo makruk engine" width="200"></p>
+
 # PlaToo Bridge GUI
 
 หน้าต่างเล็ก ๆ สำหรับนำเอนจินหมากรุกไทย (UCI) ของคุณมาแข่งกับ PlaToo ที่ <https://platoo.kiraro.dev/bots>

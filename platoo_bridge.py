@@ -39,8 +39,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-VERSION = "1.0"
-DEFAULT_SERVER = "https://platoo.kiraro.dev"
+VERSION = "1.0.1"
+DEFAULT_SERVER = "https://play.platoomakruk.in.th"
 MOVE_RE = re.compile(r"[a-h][1-8][a-h][1-8]m?")
 FEN_RE = re.compile(r"[1-8A-Za-z~/]{15,90} [wb] [A-Za-z-]{1,4} [a-h1-8-]{1,2} \d{1,4} \d{1,4}")
 LEVELS = ("easy", "medium", "pro", "promax")

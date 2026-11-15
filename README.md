@@ -2,10 +2,10 @@
 
 # PlaToo Bridge GUI
 
-หน้าต่างเล็ก ๆ สำหรับนำเอนจินหมากรุกไทย (UCI) ของคุณมาแข่งกับ PlaToo ที่ <https://platoo.kiraro.dev/bots>
+หน้าต่างเล็ก ๆ สำหรับนำเอนจินหมากรุกไทย (UCI) ของคุณมาแข่งกับ PlaToo ที่ <https://play.platoomakruk.in.th/bots>
 ทำงานเหมือน `platoo-bridge.py` ทุกอย่าง เพียงแต่ไม่ต้องพิมพ์คำสั่ง
 
-A small window that plays your own UCI Makruk engine against PlaToo at <https://platoo.kiraro.dev/bots>.
+A small window that plays your own UCI Makruk engine against PlaToo at <https://play.platoomakruk.in.th/bots>.
 It does exactly what `platoo-bridge.py` does, without the command line.
 
 ## ใช้งาน / Use

@@ -21,6 +21,7 @@ LEVELS = (("ง่าย / Easy", "easy"), ("ปานกลาง / Medium", "m
 COLORS = (("สลับ / Alternate", "alt"), ("ขาว / White", "w"), ("ดำ / Black", "b"), ("สุ่ม / Random", "random"))
 MINUTES = (3, 5, 10, 20)
 GAME_URL_RE = re.compile(r"https?://\S+/g/\S+")
+LIVE_URL_RE = re.compile(r"watch live: (https?://\S+/bots/\S+/live)")  # bridge 1.0.3: the bot's permanent live page
 HERE = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))  # PyInstaller unpacks bundled files to _MEIPASS
 TOKEN_FILE = Path(os.environ.get("APPDATA", Path.home())) / "PlatooBridge" / "token.bin"
 CAN_REMEMBER = sys.platform == "win32"
@@ -66,7 +67,7 @@ pb.subprocess.Popen = lambda *a, **kw: _popen(*a, creationflags=getattr(subproce
 
 
 def make_args(engine, options, level, minutes, color, games, evalfile="", threads=1, hash_mb=64, ponder=True,
-              no_bonus=True):
+              no_bonus=True, open_live=True):
     """Form values -> the argparse namespace pb.Bridge expects. ValueError carries the message for the user."""
     if not Path(engine).is_file():
         raise ValueError("เลือกไฟล์เอนจิน UCI ของคุณ / Pick your UCI engine file")
@@ -87,7 +88,9 @@ def make_args(engine, options, level, minutes, color, games, evalfile="", thread
                      challenge=(level, minutes, color), games=games, no_bonus=no_bonus,
                      exit_after_series=True, overhead_ms=300, log=None, quiet=False,
                      # draw offers (bridge 1.0.2): the bridge's own defaults
-                     no_draw_offer=False, draw_after=250, draw_cp=15, draw_moves=8)
+                     no_draw_offer=False, draw_after=250, draw_cp=15, draw_moves=8,
+                     # bridge 1.0.3: open the bot's live page (always its newest game) once connected
+                     open_live=open_live)
 
 
 def _is_bestmove(line):
@@ -166,7 +169,8 @@ class App(tk.Tk):
         self.lines = queue.Queue()
         self.bridge = None
         self.thread = None
-        self.url = None
+        self.url = None  # the game being played (/g/...)
+        self.live_url = None  # the bot's permanent live page (/bots/<name>/live), from bridge 1.0.3
         pb.log_line = lambda msg: self.lines.put(time.strftime("%H:%M:%S ") + msg)
 
         self.logo = tk.PhotoImage(file=str(HERE / "logo.png"))
@@ -256,9 +260,11 @@ class App(tk.Tk):
         bar.grid(row=10, column=0, columnspan=3, sticky="ew", pady=8)
         self.start_btn = ttk.Button(bar, text="เริ่ม / Start", command=self.start)
         self.stop_btn = ttk.Button(bar, text="หยุด / Stop", command=self.stop)
-        self.watch_btn = ttk.Button(bar, text="ดูเกมสด / Watch live", command=lambda: webbrowser.open(self.url))
+        self.watch_btn = ttk.Button(bar, text="ดูสด / Watch live", command=lambda: webbrowser.open(self.live_url or self.url))
+        self.open_live = tk.BooleanVar(value=True)
+        live_box = ttk.Checkbutton(bar, text="เปิดหน้าดูสดเมื่อเริ่ม / Open it at start", variable=self.open_live)
         self.score = ttk.Label(bar)
-        for w in (self.start_btn, self.stop_btn, self.watch_btn, self.score):
+        for w in (self.start_btn, self.stop_btn, self.watch_btn, live_box, self.score):
             w.pack(side="left", padx=(0, 6))
 
         self.log = scrolledtext.ScrolledText(f, height=14, state="disabled")
@@ -309,7 +315,8 @@ class App(tk.Tk):
                              LEVELS[self.level.current()][1], MINUTES[self.minutes.current()],
                              COLORS[self.color.current()][1], int(self.games.get()),
                              evalfile=self.evalfile.get().strip(), threads=int(self.threads.get()),
-                             hash_mb=int(self.hash.get()), ponder=self.ponder.get(), no_bonus=self.no_bonus.get())
+                             hash_mb=int(self.hash.get()), ponder=self.ponder.get(), no_bonus=self.no_bonus.get(),
+                             open_live=self.open_live.get())
             self.bridge = GuiBridge(args, token)
         except (ValueError, pb.BridgeError) as exc:
             messagebox.showerror("PlaToo Bridge", str(exc))
@@ -357,6 +364,9 @@ class App(tk.Tk):
                 found = GAME_URL_RE.search(line)
                 if found:
                     self.url = found.group()
+                live = LIVE_URL_RE.search(line)
+                if live:
+                    self.live_url = live.group(1)
                 self.log.configure(state="normal")
                 self.log.insert("end", line + "\n")
                 self.log.see("end")
@@ -365,7 +375,7 @@ class App(tk.Tk):
             pass
         self.start_btn.configure(state="disabled" if self.running else "normal")
         self.stop_btn.configure(state="normal" if self.running else "disabled")
-        self.watch_btn.configure(state="normal" if self.url else "disabled")
+        self.watch_btn.configure(state="normal" if self.live_url or self.url else "disabled")
         if self.bridge:
             s = self.bridge.score
             self.score.configure(text=f"ชนะ / Win {s['win']}   เสมอ / Draw {s['draw']}   แพ้ / Loss {s['loss']}")

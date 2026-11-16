@@ -38,8 +38,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import webbrowser
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 DEFAULT_SERVER = "https://play.platoomakruk.in.th"
 MOVE_RE = re.compile(r"[a-h][1-8][a-h][1-8]m?")
 FEN_RE = re.compile(r"[1-8A-Za-z~/]{15,90} [wb] [A-Za-z-]{1,4} [a-h1-8-]{1,2} \d{1,4} \d{1,4}")
@@ -86,6 +87,16 @@ def go_line(state, color, overhead_ms):
         if int(inc.get(c) or 0) > 0:
             parts += [name, str(int(inc[c]))]
     return " ".join(parts)
+
+
+LIVE_PATH_RE = re.compile(r"/bots/[A-Za-z0-9_-]{3,24}/live")
+
+
+def live_url(server, hello, name):
+    """The bot's permanent live page (always its newest game), from /bot/hello (server.liveUrl); servers without
+    it get the same path built from the bot name. Only a path of that form is used: nothing else gets opened."""
+    path = (hello.get("server") or {}).get("liveUrl") or f"/bots/{name}/live"
+    return server.rstrip("/") + path if isinstance(path, str) and LIVE_PATH_RE.fullmatch(path) else None
 
 
 def parse_challenge(text):
@@ -312,6 +323,7 @@ class Bridge:
         self.draw_offered = {}  # gameId -> ply of our last draw offer
         self.challenge_id = None
         self.score = {"win": 0, "draw": 0, "loss": 0}
+        self.live_url = None  # the bot's live page, from hello (1.0.3)
 
     def poll_loop(self, after):
         backoff = 1
@@ -340,6 +352,11 @@ class Bridge:
             "engineName": self.engine.name, "engineAuthor": self.engine.author, "bridgeVersion": VERSION},
             until=time.monotonic() + 300)
         log_line(f"connected as bot {out['bot']['name']} ({self.engine.name})")
+        self.live_url = live_url(self.args.server, out, out["bot"]["name"])
+        if self.live_url:
+            log_line(f"watch live: {self.live_url}")
+            if getattr(self.args, "open_live", False):
+                webbrowser.open(self.live_url)
         return out
 
     def challenge(self):
@@ -493,6 +510,7 @@ def main(argv=None):
     p.add_argument("--draw-after", type=int, default=250, help="offer draws only from this ply on (default 250)")
     p.add_argument("--draw-cp", type=int, default=15, help="level = engine score within +-this many cp (default 15)")
     p.add_argument("--draw-moves", type=int, default=8, help="offer after this many level moves of ours in a row (default 8)")
+    p.add_argument("--open-live", action="store_true", help="open the bot's live page (its newest game) in the browser")
     p.add_argument("--log", help="write the whole UCI dialogue to this file")
     p.add_argument("--quiet", action="store_true", help="no line per move")
     p.add_argument("--version", action="version", version=f"platoo-bridge {VERSION}")

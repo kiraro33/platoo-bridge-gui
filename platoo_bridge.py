@@ -39,7 +39,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 DEFAULT_SERVER = "https://play.platoomakruk.in.th"
 MOVE_RE = re.compile(r"[a-h][1-8][a-h][1-8]m?")
 FEN_RE = re.compile(r"[1-8A-Za-z~/]{15,90} [wb] [A-Za-z-]{1,4} [a-h1-8-]{1,2} \d{1,4} \d{1,4}")
@@ -308,6 +308,8 @@ class Bridge:
         self.stop = threading.Event()
         self.answered = {}  # gameId -> last ply we posted a move for
         self.colors = {}
+        self.scores = {}  # gameId -> our engine's last scores (cp, None = mate or none), for draw offers
+        self.draw_offered = {}  # gameId -> ply of our last draw offer
         self.challenge_id = None
         self.score = {"win": 0, "draw": 0, "loss": 0}
 
@@ -382,6 +384,7 @@ class Bridge:
                               until=time.monotonic() + max(1.0, (left - info["timeMs"]) / 1000))
             if not self.args.quiet:
                 log_line(f"  ply {st['ply'] + 1}: {move}  ({info['timeMs']} ms, {left / 1000:.1f} s left)")
+            self.maybe_offer_draw(gid, st["ply"] + 1, info)
         except ApiError as exc:
             if exc.code == "illegal_move":
                 log_line(f"server refused {move} as illegal in game {gid}; resigning")
@@ -392,6 +395,26 @@ class Bridge:
         except NetError as exc:
             log_line(f"move {move} could not be sent: {exc}")
             self.answered.pop(gid, None)
+
+    def maybe_offer_draw(self, gid, ply, info):
+        """Offers a draw when our engine has called the position level for a while (the server may
+        also end a level game by itself, DESIGN §6.12.14). PlaToo accepts or declines at once."""
+        a = self.args
+        score = info.get("scoreCp") if info.get("scoreMate") is None else None
+        scores = self.scores.setdefault(gid, [])
+        scores.append(score)
+        del scores[:-a.draw_moves]
+        if a.no_draw_offer or ply < a.draw_after or len(scores) < a.draw_moves:
+            return
+        if any(s is None or abs(s) > a.draw_cp for s in scores) or ply - self.draw_offered.get(gid, -999) < 10:
+            return
+        self.draw_offered[gid] = ply
+        try:
+            out = self.server.call("POST", f"/api/v1/bot/games/{gid}/draw")
+            log_line(f"game {gid[:8]}: draw offered at ply {ply}: {'accepted' if out.get('accepted') else 'declined'}")
+        except (ApiError, NetError) as exc:
+            if getattr(exc, "code", "") not in ("draw_offer_wait", "draw_offer_off", "game_over"):
+                log_line(f"game {gid[:8]}: draw offer failed: {exc}")
 
     def resign(self, gid):
         try:
@@ -466,6 +489,10 @@ def main(argv=None):
     p.add_argument("--no-bonus", action="store_true", help="no low-time bonus in the challenged games")
     p.add_argument("--exit-after-series", action="store_true", help="exit when the series is over")
     p.add_argument("--overhead-ms", type=int, default=300, help="time kept back from your engine per move")
+    p.add_argument("--no-draw-offer", action="store_true", help="never offer PlaToo a draw")
+    p.add_argument("--draw-after", type=int, default=250, help="offer draws only from this ply on (default 250)")
+    p.add_argument("--draw-cp", type=int, default=15, help="level = engine score within +-this many cp (default 15)")
+    p.add_argument("--draw-moves", type=int, default=8, help="offer after this many level moves of ours in a row (default 8)")
     p.add_argument("--log", help="write the whole UCI dialogue to this file")
     p.add_argument("--quiet", action="store_true", help="no line per move")
     p.add_argument("--version", action="version", version=f"platoo-bridge {VERSION}")

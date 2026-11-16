@@ -27,6 +27,8 @@ def test_make_args(tmp_path):
     args = make_args(str(engine), "", "pro", 5, "w", 1, evalfile=str(engine), threads=4, hash_mb=256,
                      ponder=False, no_bonus=False)
     assert args.option == ["Threads=4", "Hash=256", "Ponder=false", f"EvalFile={engine}"] and not args.no_bonus
+    # draw offers on, with the bridge's defaults (1.0.2: from ply 250)
+    assert not args.no_draw_offer and (args.draw_after, args.draw_cp, args.draw_moves) == (250, 15, 8)
 
     for bad in ({"options": "Hash 256"}, {"options": "=1"}, {"games": 0}, {"games": 21}, {"threads": 0},
                 {"evalfile": str(tmp_path / "missing.nnue")}, {"engine": str(tmp_path / "missing.exe")}):

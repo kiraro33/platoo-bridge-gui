@@ -85,7 +85,9 @@ def make_args(engine, options, level, minutes, color, games, evalfile="", thread
         raise ValueError("จำนวนเกม 1-20 / Games must be 1-20")
     return Namespace(engine=engine, engine_arg=None, option=opts + extra, server=pb.DEFAULT_SERVER,
                      challenge=(level, minutes, color), games=games, no_bonus=no_bonus,
-                     exit_after_series=True, overhead_ms=300, log=None, quiet=False)
+                     exit_after_series=True, overhead_ms=300, log=None, quiet=False,
+                     # draw offers (bridge 1.0.2): the bridge's own defaults
+                     no_draw_offer=False, draw_after=250, draw_cp=15, draw_moves=8)
 
 
 def _is_bestmove(line):

@@ -29,6 +29,8 @@ def test_make_args(tmp_path):
     assert args.option == ["Threads=4", "Hash=256", "Ponder=false", f"EvalFile={engine}"] and not args.no_bonus
     # draw offers on, with the bridge's defaults (1.0.2: from ply 250)
     assert not args.no_draw_offer and (args.draw_after, args.draw_cp, args.draw_moves) == (250, 15, 8)
+    assert args.open_live  # 1.0.3: opens the bot's live page by default
+    assert not make_args(str(engine), "", "pro", 5, "w", 1, open_live=False).open_live
 
     for bad in ({"options": "Hash 256"}, {"options": "=1"}, {"games": 0}, {"games": 21}, {"threads": 0},
                 {"evalfile": str(tmp_path / "missing.nnue")}, {"engine": str(tmp_path / "missing.exe")}):
@@ -100,3 +102,9 @@ def test_no_ponder_when_off(tmp_path):
         assert eng.ponder_on is None and not any("ponder" in s for s in sent(log))
     finally:
         eng.quit()
+
+
+def test_live_url_in_log():
+    line = "12:00:00 watch live: https://play.platoomakruk.in.th/bots/MyBot/live"
+    assert gui.LIVE_URL_RE.search(line).group(1) == "https://play.platoomakruk.in.th/bots/MyBot/live"
+    assert not gui.LIVE_URL_RE.search("12:00:00 new game: ... https://x/g/abcdefghij")

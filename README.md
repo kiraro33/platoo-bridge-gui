@@ -26,6 +26,11 @@ It does exactly what `platoo-bridge.py` does, without the command line.
   Ponder (on by default): your engine keeps thinking while PlaToo thinks.
 - ไม่ใช้โบนัสเวลาเมื่อเหลือน้อย (เปิดเป็นค่าเริ่มต้น) / No low-time bonus (on by default).
 
+ดูสด / Watch live (1.0.3): เปิดหน้าดูสดถาวรของบอท `/bots/<ชื่อบอท>/live` ซึ่งแสดงเกมล่าสุดของบอทเสมอ
+และเปลี่ยนไปเกมใหม่เอง ติ๊ก "เปิดหน้าดูสดเมื่อเริ่ม" (เปิดเป็นค่าเริ่มต้น) เพื่อให้เปิดเบราว์เซอร์ให้ทันทีที่เชื่อมต่อ /
+Watch live (1.0.3) opens your bot's permanent live page `/bots/<bot name>/live`, which always shows its newest game
+and moves to the next one by itself; "Open it at start" (on by default) opens it as soon as the bridge connects.
+
 ตัวเลือก UCI อื่น ๆ ใส่บรรทัดละตัวแบบ `NAME=VALUE` / Other UCI options go one per line as `NAME=VALUE`.
 
 เปิดหน้าต่างไว้ตลอดเกม ถ้าปิดระหว่างเกม บอทจะแพ้เพราะทิ้งเกมหลัง 60 วินาที /
